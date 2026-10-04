@@ -184,3 +184,18 @@ describe('a person decides', () => {
     }
   });
 });
+
+describe('npm exact pins', () => {
+  it('finds a parent that pins the exact installed version, and ignores ranges', async () => {
+    const { exactPins } = await import('../src/ecosystems/npm');
+    const d = dir();
+    writeFileSync(join(d, 'package-lock.json'), JSON.stringify({ packages: {
+      '': { dependencies: { '@nestjs/common': '^10' } },
+      'node_modules/@nestjs/common': { version: '10.4.22', dependencies: { 'file-type': '20.4.1' } },
+      'node_modules/other': { version: '1.0.0', dependencies: { 'file-type': '^20.4.1' } },
+      'node_modules/file-type': { version: '20.4.1' },
+    } }));
+    expect(exactPins(d, 'file-type', '20.4.1')).toEqual(['@nestjs/common']);
+    expect(exactPins(d, 'file-type', '20.5.0')).toEqual([]);
+  });
+});

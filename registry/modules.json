@@ -14,7 +14,7 @@
       ]
     },
     "@akil-inv/patch-kit-agent": {
-      "latest": "0.1.1",
+      "latest": "0.1.2",
       "repo": "https://github.com/Akil-inv/patch-kit"
     }
   }

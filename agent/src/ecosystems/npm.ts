@@ -10,7 +10,25 @@ import { pool, run } from '../util';
  * ranges in package.json (npm audit fix, never --force).
  */
 
-type Lock = { packages?: Record<string, { version?: string; dev?: boolean }> };
+type Lock = { packages?: Record<string, { version?: string; dev?: boolean; dependencies?: Record<string, string> }> };
+
+/**
+ * Packages that require `name` at exactly the installed version ("20.4.1", not
+ * "^20.4.1"). npm audit can still call such a package fixable, but no upgrade
+ * inside the allowed ranges moves it: the package that pins it has to change.
+ */
+export function exactPins(dir: string, name: string, version: string): string[] {
+  const p = join(dir, 'package-lock.json');
+  if (!existsSync(p)) return [];
+  const lock: Lock = JSON.parse(readFileSync(p, 'utf8'));
+  const out: string[] = [];
+  for (const [path, info] of Object.entries(lock.packages ?? {})) {
+    const spec = info.dependencies?.[name];
+    if (!spec || !path) continue;
+    if (spec.trim().replace(/^=/, '') === version) out.push(path.replace(/^.*node_modules\//, ''));
+  }
+  return [...new Set(out)];
+}
 
 export function readLock(dir: string): Map<string, string> {
   const p = join(dir, 'package-lock.json');
@@ -63,8 +81,18 @@ export async function auditNpm(component: string, dir: string): Promise<Finding[
       url: x.url,
     }));
     const fa = v.fixAvailable;
+    const installed = lock.get(name) ?? '';
+    const pinnedBy = fa === true || (fa && typeof fa === 'object' && !fa.isSemVerMajor) ? exactPins(dir, name, installed) : [];
     let fix: Finding['fix'];
-    if (fa === true) fix = { kind: 'safe', how: 'npm audit fix (within the ranges in package.json)' };
+    if (pinnedBy.length) {
+      // npm says fixable, but a parent pins this exact version: the parent has to move.
+      const parent = pinnedBy[0];
+      const latest = (await run('npm', ['view', parent, 'version'], { cwd: dir, timeoutMs: 30_000 })).stdout.trim() || 'latest';
+      const sameLine = lock.get(parent) && latest !== 'latest' && lock.get(parent)!.split('.')[0] === latest.split('.')[0];
+      fix = sameLine
+        ? { kind: 'none', how: `${parent} pins ${name} at exactly ${installed}, and even its latest release (${latest}) has no fix yet` }
+        : { kind: 'major', package: parent, to: latest, how: `${parent} pins ${name} at exactly ${installed}; upgrade ${parent} to ${latest} (a major version)` };
+    } else if (fa === true) fix = { kind: 'safe', how: 'npm audit fix (within the ranges in package.json)' };
     else if (fa && typeof fa === 'object' && !fa.isSemVerMajor) fix = { kind: 'safe', how: `npm audit fix updates ${fa.name} to ${fa.version}` };
     else if (fa && typeof fa === 'object') fix = { kind: 'major', package: fa.name, to: fa.version, how: `upgrade ${fa.name} to ${fa.version} (a major version)` };
     else if (ELSEWHERE[name]) fix = { kind: 'major', package: name, to: ELSEWHERE[name].to, how: ELSEWHERE[name].how };

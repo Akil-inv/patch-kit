@@ -28,6 +28,11 @@ const KNOWN: Record<string, Known> = {
     guide: 'https://docs.nestjs.com/migration-guide',
     breaking: (f, t) => (f < 11 && t >= 11 ? ['Express 5 path matching (wildcards need names, e.g. *splat)', 'Node.js 20 or later', 'all @nestjs/* packages move together'] : []),
   },
+  '@nestjs/common': {
+    name: 'NestJS (common)',
+    guide: 'https://docs.nestjs.com/migration-guide',
+    breaking: (f, t) => (f < 11 && t >= 11 ? ['Express 5 path matching (wildcards need names, e.g. *splat)', 'Node.js 20 or later', 'all @nestjs/* packages move together'] : []),
+  },
   '@nestjs/graphql': {
     name: 'NestJS GraphQL',
     guide: 'https://docs.nestjs.com/migration-guide',

@@ -45,7 +45,7 @@ Optional: `deploy: { rollback: <how to put back the previous release> }`, `image
 ## Run it
 
 ```bash
-npm i -g ./akil-inv-patch-kit-agent-0.1.1.tgz   # installs with no network: its one dependency is bundled
+npm i -g ./akil-inv-patch-kit-agent-0.1.2.tgz   # installs with no network: its one dependency is bundled
 
 patchkit scan                 # report only
 patchkit fix                  # safe upgrades on branch patchkit/YYYY-MM-DD, tests before and after
