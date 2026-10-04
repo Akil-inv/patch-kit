@@ -2,7 +2,7 @@
   "updated": "2026-10-04",
   "modules": {
     "@akil-inv/auth-kit": {
-      "latest": "0.2.1",
+      "latest": "0.2.2",
       "repo": "https://github.com/Akil-inv/auth-kit",
       "advisories": [
         {
