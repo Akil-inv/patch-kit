@@ -1,0 +1,40 @@
+{
+  "name": "@akil-inv/patch-kit-agent",
+  "version": "0.1.0",
+  "description": "patch-kit agent: finds vulnerable, deprecated and end-of-life dependencies in a product, prepares safe upgrades on a branch, runs the product's tests and writes a report.",
+  "license": "UNLICENSED",
+  "private": true,
+  "bin": {
+    "patchkit": "dist/cli.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.json && chmod +x dist/cli.js",
+    "test": "vitest run",
+    "pack:release": "npm run build && npm pack"
+  },
+  "dependencies": {
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.9"
+  },
+  "bundleDependencies": [
+    "yaml"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Akil-inv/patch-kit.git",
+    "directory": "agent"
+  }
+}

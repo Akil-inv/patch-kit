@@ -1,0 +1,21 @@
+{
+  "updated": "2026-10-04",
+  "modules": {
+    "@akil-inv/auth-kit": {
+      "latest": "0.2.1",
+      "repo": "https://github.com/Akil-inv/auth-kit",
+      "advisories": [
+        {
+          "id": "AK-2026-001",
+          "title": "auth-kit before 0.2.1 depends on nodemailer 6, which has published advisories (SMTP command injection, address parsing)",
+          "below": "0.2.1",
+          "severity": "high"
+        }
+      ]
+    },
+    "@akil-inv/patch-kit-agent": {
+      "latest": "0.1.0",
+      "repo": "https://github.com/Akil-inv/patch-kit"
+    }
+  }
+}
