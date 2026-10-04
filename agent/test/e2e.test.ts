@@ -59,6 +59,57 @@ e2e('patchkit fix (npm registry)', () => {
   }, 240_000);
 });
 
+const sh = (c: string, cwd: string) => execSync(c, { cwd, stdio: 'pipe' }).toString();
+
+/** Make an upgrade with fix, then merge it into main the way GitHub does. */
+async function upgradeAndMerge(d: string, how: 'merge' | 'squash') {
+  expect(await main(['fix', '--root', d, '--no-images', '-q'])).toBe(0);
+  const b = sh('git branch --list "patchkit/*"', d).trim().replace('* ', '');
+  if (how === 'merge') sh(`git -c user.name=t -c user.email=t@t merge --no-ff -m "Merge pull request #7 from Akil-inv/${b}" ${b}`, d);
+  else sh(`git merge --squash ${b} && git -c user.name=t -c user.email=t@t commit -qm "patch-kit: 1 safe upgrade (demo) (#7)" -m "$(git log -1 --format=%B ${b} | tail -1)"`, d);
+  sh(`git branch -D ${b}`, d);
+  expect(lockVersion(d, 'main')).not.toBe('1.2.5');
+}
+
+e2e('patchkit rollback (npm registry)', () => {
+  for (const how of ['merge', 'squash'] as const) {
+    it(`reverts the last upgrade (${how}) on a branch, tested, main untouched`, async () => {
+      const d = product('node -e "require(\'minimist\')"');
+      await upgradeAndMerge(d, how);
+      writeFileSync(join(d, 'later.txt'), 'unrelated work after the upgrade');
+      sh('git add -A && git -c user.name=t -c user.email=t@t commit -qm "later work"', d);
+      const mainBefore = sh('git rev-parse main', d).trim();
+      expect(await main(['rollback', '--root', d, '-q'])).toBe(0);
+      expect(branch(d)).toBe('main');
+      expect(sh('git rev-parse main', d).trim()).toBe(mainBefore);
+      const rb = sh('git branch --list "patchkit/rollback-*"', d).trim();
+      expect(rb).toMatch(/patchkit\/rollback-[0-9a-f]{7}/);
+      expect(lockVersion(d, rb)).toBe('1.2.5');
+      expect(sh(`git show ${rb}:later.txt`, d)).toMatch(/unrelated/);            // later work kept
+      expect(readFileSync(join(d, '.patchkit/rollback.md'), 'utf8')).toMatch(/✅ passed/);
+    }, 240_000);
+  }
+
+  it('says so when there is nothing to roll back, and does not roll back twice', async () => {
+    const d = product('true');
+    expect(await main(['rollback', '--root', d, '-q'])).toBe(0);
+    await upgradeAndMerge(d, 'merge');
+    expect(await main(['rollback', '--root', d, '-q'])).toBe(0);
+    const rb = sh('git branch --list "patchkit/rollback-*"', d).trim();
+    sh(`git -c user.name=t -c user.email=t@t merge --no-ff -m "Merge rollback" ${rb}`, d);
+    const before = sh('git branch --list "patchkit/*"', d);
+    expect(await main(['rollback', '--root', d, '-q'])).toBe(0);
+    expect(sh('git branch --list "patchkit/*"', d)).toBe(before);              // nothing new
+  }, 240_000);
+
+  it('refuses on a schedule', async () => {
+    const d = product('true');
+    process.env.GITHUB_EVENT_NAME = 'schedule';
+    try { await expect(main(['rollback', '--root', d, '-q'])).rejects.toThrow(/only when a person asks/); }
+    finally { delete process.env.GITHUB_EVENT_NAME; }
+  }, 60_000);
+});
+
 function compareGte(a: string, b: string) {
   const x = a.split('.').map(Number), y = b.split('.').map(Number);
   for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] > y[i];

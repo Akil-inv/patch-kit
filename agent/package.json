@@ -1,6 +1,6 @@
 {
   "name": "@akil-inv/patch-kit-agent",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "patch-kit agent: finds vulnerable, deprecated and end-of-life dependencies in a product, prepares safe upgrades on a branch, runs the product's tests and writes a report.",
   "license": "UNLICENSED",
   "private": true,

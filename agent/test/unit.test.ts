@@ -12,6 +12,7 @@ import { count, toMarkdown } from '../src/report';
 import { compare, summarise } from '../src/tests';
 import { Finding, Report } from '../src/types';
 import { compareVersions, sameMajor } from '../src/util';
+import { isScheduled, main } from '../src/cli';
 
 const dir = () => mkdtempSync(join(tmpdir(), 'pk-'));
 const day = new Date('2026-10-04T00:00:00Z');
@@ -165,5 +166,21 @@ describe('report', () => {
     expect(md).toMatch(/broke 1 test/);
     expect(md).toMatch(/\| apps\/api \| qs \| 6.1 \| 6.2 \|/);
     expect(md).toMatch(/## Not checked\n\n- images/);
+  });
+});
+
+describe('a person decides', () => {
+  it('recognises scheduled runs', () => {
+    expect(isScheduled({ GITHUB_EVENT_NAME: 'schedule' })).toBe(true);
+    expect(isScheduled({ CI_PIPELINE_SOURCE: 'schedule' })).toBe(true);
+    expect(isScheduled({ GITHUB_EVENT_NAME: 'workflow_dispatch' })).toBe(false);
+  });
+  it('refuses to upgrade on a schedule', async () => {
+    process.env.GITHUB_EVENT_NAME = 'schedule';
+    try {
+      await expect(main(['fix', '--root', '/nonexistent', '-q'])).rejects.toThrow(/only when a person asks/);
+    } finally {
+      delete process.env.GITHUB_EVENT_NAME;
+    }
   });
 });

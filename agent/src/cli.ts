@@ -7,6 +7,7 @@ import { backTo, branchName, commitFiles, discardChanges, dirtyFiles, gitInfo, p
 import { loadManifest } from './manifest';
 import { makePlans } from './plans';
 import { count, oneLine, toMarkdown } from './report';
+import { rollback, UPGRADE_TRAILER } from './rollback';
 import { scan } from './scan';
 import { compare, runAll } from './tests';
 import { Change, Report, SEVERITIES, Severity } from './types';
@@ -18,7 +19,10 @@ const HELP = `patchkit ${VERSION}: find vulnerable, deprecated and end-of-life p
 
 Usage:
   patchkit scan [options]          report only; changes nothing
-  patchkit fix  [options]          make the safe upgrades on a new branch, run the tests before and after
+  patchkit fix  [options]          when a person asks: make the safe upgrades on a new branch,
+                                   run the tests before and after (never on a schedule)
+  patchkit rollback [options]      when a person asks: revert the last patch-kit upgrade on a new
+                                   branch and test it (never on a schedule)
        --push                      push the branch
        --pr                        open a pull request (implies --push; needs the gh CLI)
 
@@ -53,17 +57,32 @@ function parse(argv: string[]): Opts {
   return o;
 }
 
+/** A run started by a timer rather than a person (GitHub Actions, GitLab CI, or PATCHKIT_SCHEDULED=1). */
+export function isScheduled(env = process.env): boolean {
+  return env.GITHUB_EVENT_NAME === 'schedule' || env.CI_PIPELINE_SOURCE === 'schedule' || env.PATCHKIT_SCHEDULED === '1';
+}
+
 export async function main(argv = process.argv.slice(2)): Promise<number> {
   let o: Opts;
   try { o = parse(argv); } catch (e) { console.error(`patchkit: ${(e as Error).message}\n\n${HELP}`); return 64; }
   if (o.cmd === 'version' || o.cmd === '--version') { console.log(VERSION); return 0; }
-  if (o.cmd !== 'scan' && o.cmd !== 'fix') { console.log(HELP); return o.cmd === 'help' || o.cmd === '--help' || o.cmd === '-h' ? 0 : 64; }
+  if (o.cmd !== 'scan' && o.cmd !== 'fix' && o.cmd !== 'rollback') { console.log(HELP); return o.cmd === 'help' || o.cmd === '--help' || o.cmd === '-h' ? 0 : 64; }
+  // By design, nothing is upgraded unless a person asks: a scheduled job may only scan.
+  if (o.cmd !== 'scan' && isScheduled()) {
+    throw new Error(`${o.cmd} does not run on a schedule: patch-kit changes code only when a person asks for it. Scheduled jobs run \`patchkit scan\`.`);
+  }
 
   const log = (s: string) => { if (!o.quiet) console.error(s); };
   const m = loadManifest(o.root, o.manifest);
   const out = o.out ?? join(o.root, '.patchkit');
   const git = await gitInfo(o.root);
   log(`patchkit ${VERSION}: ${m.product} (${m.environment})`);
+
+  if (o.cmd === 'rollback') {
+    const r = await rollback(o.root, m, { push: o.push, pr: o.pr, allowDirty: o.allowDirty, out, log });
+    console.log(`${m.product}: ${r.message}`);
+    return r.code;
+  }
 
   if (o.cmd === 'fix') {
     if (!git) throw new Error('fix needs a git repository');
@@ -79,7 +98,7 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
 
   const report: Report = {
     schema: 1, tool: { name: 'patch-kit-agent', version: VERSION },
-    product: m.product, owner: m.owner, environment: m.environment, mode: o.cmd as 'scan' | 'fix', ranAt: new Date().toISOString(), git,
+    product: m.product, owner: m.owner, environment: m.environment, mode: o.cmd as 'scan' | 'fix', rollbackHow: m.deploy?.rollback, ranAt: new Date().toISOString(), git,
     components: s0.components, findings: s0.findings, plans, changes: [], tests: [],
     summary: { before, after: before, safeFixes: safe.length, plans: plans.length, notChecked: s0.notChecked },
   };
@@ -129,7 +148,7 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
       const title = `patch-kit: ${changes.length} safe upgrade${changes.length > 1 ? 's' : ''} (${m.product})`;
       const touched = [...new Set(changes.map((c) => c.component))].flatMap((c) =>
         ['package.json', 'package-lock.json', 'requirements.txt'].map((f) => join(c, f)).filter((f) => existsSync(join(o.root, f))));
-      await commitFiles(o.root, touched, `${title}\n\n${changes.map((c) => `${c.component}: ${c.package} ${c.from} → ${c.to}`).join('\n')}`);
+      await commitFiles(o.root, touched, `${title}\n\n${changes.map((c) => `${c.component}: ${c.package} ${c.from} → ${c.to}`).join('\n')}\n\n${UPGRADE_TRAILER}: ${name}`);
       if (!o.allowDirty) await discardChanges(o.root);
       report.branch = { name, pushed: false };
       try {

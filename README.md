@@ -9,7 +9,7 @@ Keeps every product on supported, patched libraries, including products with no 
 | **Offline bundles**: signed, cyclic update packages carried through the approved gateway into air-gapped sites | | Phase 3 |
 | **Major upgrades**: agent-prepared branches for the plans | | Phase 4 |
 
-The rule throughout: **the agent proposes, a person approves.** Nothing is merged or deployed by patch-kit itself.
+The rule throughout: **the agent proposes, a person approves.** Scheduled runs only report; upgrades and rollbacks are prepared only when a person asks, and only ever as pull requests. Nothing is merged or deployed by patch-kit itself. Every upgrade can be undone: the product's deploy puts back the previous release, and `patchkit rollback` reverts it in the code.
 
 ## Releasing a module
 

@@ -19,6 +19,8 @@ export type Manifest = {
   modules?: string;
   /** Prefix of our own packages, e.g. "@akil-inv/". */
   modulePrefix?: string;
+  /** How this product's deploy puts back the previous release (shown in every upgrade PR). */
+  deploy?: { rollback?: string };
 };
 
 export type Severity = 'critical' | 'high' | 'moderate' | 'low' | 'unrated';
@@ -84,6 +86,8 @@ export type Report = {
   environment: Manifest['environment'];
   /** scan: report only. fix: the agent tried the safe upgrades. */
   mode: 'scan' | 'fix';
+  /** From patchkit.yml deploy.rollback: how to put back the previous release on a server. */
+  rollbackHow?: string;
   ranAt: string;
   git?: { commit: string; branch: string };
   components: { path: string; ecosystem: Ecosystem; packages: number }[];

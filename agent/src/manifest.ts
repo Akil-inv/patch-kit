@@ -26,8 +26,9 @@ export function loadManifest(root: string, file = 'patchkit.yml'): Manifest {
     return { name: t?.name ?? runCmd, run: runCmd, timeoutMinutes: t?.timeoutMinutes ?? 30 };
   });
   const images = raw.images === undefined ? [] : Array.isArray(raw.images) ? raw.images : [raw.images];
+  if (raw.deploy !== undefined && (typeof raw.deploy !== 'object' || (raw.deploy.rollback !== undefined && typeof raw.deploy.rollback !== 'string'))) problems.push('deploy: rollback: <how to put back the previous release>');
   if (problems.length) throw new Error(`${file} needs fixing:\n  - ${problems.join('\n  - ')}`);
-  return { product: raw.product, owner: raw.owner, environment: env, components, images, tests, modules: raw.modules, modulePrefix: raw.modulePrefix ?? '@akil-inv/' };
+  return { product: raw.product, owner: raw.owner, environment: env, components, images, tests, modules: raw.modules, modulePrefix: raw.modulePrefix ?? '@akil-inv/', deploy: raw.deploy };
 }
 
 function detect(root: string, p: string): Ecosystem | undefined {

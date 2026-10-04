@@ -68,6 +68,14 @@ export function toMarkdown(r: Report): string {
   else out.push('No tests are listed in patchkit.yml, so nothing checked these upgrades. Add them under `tests:`.');
   out.push('');
 
+  if (r.mode === 'fix' && r.changes.length) {
+    out.push('## If something breaks after this is deployed', '');
+    out.push(r.rollbackHow
+      ? `1. **Put back the previous release on the server:** ${r.rollbackHow}`
+      : '1. **Put back the previous release on the server** with your deploy\'s rollback.');
+    out.push('2. **Undo it in the code** so the next deploy doesn\'t bring it back: Actions → patch-kit → Run workflow → `roll-back-last-upgrade`, or `patchkit rollback --pr`. That opens a pull request reverting this upgrade, tested the same way.', '');
+  }
+
   out.push(`## Needs a person: upgrade plans (${r.plans.length})`);
   out.push('');
   if (r.plans.length) {
